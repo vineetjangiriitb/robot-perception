@@ -1,3 +1,5 @@
+# LOCAL (Mac): update path for your machine
+# COLAB: the training notebook writes its own yaml pointing to /content/robot_data
 path: /Users/vineetjangir/robust&uncertainty-aware-robot-perception/data/annotated
 train: images/train
 val: images/val
