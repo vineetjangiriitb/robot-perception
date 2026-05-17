@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model weights (large files)
+*.pt
+*.pth
+*.ckpt
+models/baseline/
+models/robust/
+
+# Data (keep structure, not files)
+data/raw/
+data/corrupted/
+
+# Results (keep figures, not JSON dumps by default)
+results/robustness_baseline.json
+results/robustness_robust.json
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Ultralytics runs
+runs/
