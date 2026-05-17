@@ -94,11 +94,14 @@ robust-uncertainty-aware-robot-perception/
 │   ├── baseline/         # clean-trained weights
 │   └── robust/           # aug-trained weights
 ├── notebooks/
-│   ├── 01_data_audit.ipynb
+│   ├── 00_colab_setup.ipynb
+│   ├── 01_data_collection_and_audit.ipynb
 │   ├── 02_baseline_train.ipynb
 │   ├── 03_corruption_benchmark.ipynb
-│   ├── 04_mc_dropout.ipynb
-│   └── 05_conformal.ipynb
+│   ├── 04_robust_training.ipynb
+│   ├── 05_mc_dropout.ipynb
+│   ├── 06_conformal.ipynb
+│   └── 07_analysis.ipynb
 ├── scripts/
 │   ├── generate_corruptions.py
 │   ├── evaluate_robustness.py

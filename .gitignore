@@ -40,3 +40,6 @@ results/robustness_robust.json
 
 # Ultralytics runs
 runs/
+
+# RT-DETR reference clone (local-only, not part of this repo)
+RT-DETR/

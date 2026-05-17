@@ -9,16 +9,22 @@ Usage:
 
 Output structure:
     data/corrupted/{corruption_type}/severity_{1-5}/
-        *.jpg  (corrupted copies of test images)
-    Labels are shared with the clean test set (corruptions don't move boxes).
+        images/*.jpg   (corrupted copies of test images)
+        labels/*.txt   (copies of the shared test labels)
+
+The images/ + labels/ layout is required so Ultralytics can locate labels:
+it finds them by replacing '/images/' with '/labels/' in each image path.
+Corruptions don't move bounding boxes, so labels are identical to the clean test set.
 """
 
 import os
+import shutil
 import cv2
 import numpy as np
 from pathlib import Path
 
 TEST_IMG_DIR = Path("data/annotated/images/test")
+TEST_LBL_DIR = Path("data/annotated/labels/test")
 CORRUPTED_DIR = Path("data/corrupted")
 
 CORRUPTIONS = ["gaussian_noise", "motion_blur", "gaussian_blur", "brightness", "occlusion"]
@@ -53,7 +59,9 @@ def apply_corruption(image: np.ndarray, corruption_type: str, severity: int) -> 
         h, w = image.shape[:2]
         result = image.copy()
         n_patches = [1, 2, 3, 5, 8][s - 1]
-        rng = np.random.default_rng(seed=42)  # fixed seed for reproducibility
+        # Fixed seed: occlusion patches land at deterministic coordinates so the
+        # benchmark is reproducible across runs (intentional, not a bug).
+        rng = np.random.default_rng(seed=42)
         for _ in range(n_patches):
             pw, ph = int(w * 0.08), int(h * 0.08)
             x = rng.integers(0, max(1, w - pw))
@@ -79,25 +87,33 @@ def generate_all(test_img_dir: Path = TEST_IMG_DIR, output_dir: Path = CORRUPTED
 
     for corruption in CORRUPTIONS:
         for severity in SEVERITIES:
-            out_dir = output_dir / corruption / f"severity_{severity}"
-            out_dir.mkdir(parents=True, exist_ok=True)
+            sev_dir = output_dir / corruption / f"severity_{severity}"
+            out_img_dir = sev_dir / "images"
+            out_lbl_dir = sev_dir / "labels"
+            out_img_dir.mkdir(parents=True, exist_ok=True)
+            out_lbl_dir.mkdir(parents=True, exist_ok=True)
 
             for img_path in img_paths:
-                dest = out_dir / img_path.name
-                if dest.exists():
-                    continue
-                img = cv2.imread(str(img_path))
-                if img is None:
-                    print(f"  WARNING: cannot read {img_path}")
-                    continue
-                corrupted = apply_corruption(img, corruption, severity)
-                cv2.imwrite(str(dest), corrupted)
+                dest = out_img_dir / img_path.name
+                if not dest.exists():
+                    img = cv2.imread(str(img_path))
+                    if img is None:
+                        print(f"  WARNING: cannot read {img_path}")
+                        continue
+                    corrupted = apply_corruption(img, corruption, severity)
+                    cv2.imwrite(str(dest), corrupted)
+
+                # Copy the shared test label next to the corrupted image
+                lbl_src = TEST_LBL_DIR / (img_path.stem + ".txt")
+                lbl_dst = out_lbl_dir / (img_path.stem + ".txt")
+                if lbl_src.exists() and not lbl_dst.exists():
+                    shutil.copy2(lbl_src, lbl_dst)
 
             done += 1
             print(f"  [{done}/{total}] {corruption}/severity_{severity} — {len(img_paths)} images")
 
     print(f"\nDone. Corrupted sets written to {output_dir}/")
-    print("Labels remain in data/annotated/labels/test/ (boxes don't change under corruption).")
+    print("Each severity dir now has images/ + labels/ subdirs (Ultralytics-compatible layout).")
 
 
 if __name__ == "__main__":

@@ -31,21 +31,18 @@ DATASET_YAML = Path("robot_parts.yaml")
 
 def build_temp_yaml(corruption: str, severity: int, tmp_dir: Path) -> Path:
     """
-    Ultralytics val() needs a yaml pointing to the images to evaluate.
-    We create a temporary yaml that points to the corrupted image directory.
-    Labels are always read from data/annotated/labels/test/.
-    """
-    # Ultralytics mirrors label paths from images path — symlink labels next to images
-    img_dir = CORRUPTED_DIR / corruption / f"severity_{severity}"
-    lbl_link = img_dir.parent / f"severity_{severity}_labels"
+    Build a temporary dataset yaml for one corrupted set.
 
-    # Symlink labels into a parallel 'labels' dir so Ultralytics can find them
-    # Ultralytics convention: images/test → labels/test (same relative path)
-    yaml_content = f"""
-path: {img_dir.resolve().parent.parent}
-train: ../../annotated/images/train
-val: ../../annotated/images/val
-test: {corruption}/severity_{severity}
+    `path:` points at the severity dir; train/val/test all = 'images'.
+    With split='test', Ultralytics resolves {sev}/images/*.jpg and then
+    finds labels by replacing '/images/' with '/labels/' → {sev}/labels/*.txt.
+    train/val are set only so the yaml validates; they are never read.
+    """
+    sev_dir = (CORRUPTED_DIR / corruption / f"severity_{severity}").resolve()
+    yaml_content = f"""path: {sev_dir}
+train: images
+val: images
+test: images
 
 nc: 5
 names: ['arm', 'leg', 'torso', 'head', 'sensor']
@@ -76,11 +73,17 @@ def evaluate_model(weights_path: str, output_json: str):
         for corruption in CORRUPTIONS:
             results_grid[corruption] = {}
             for severity in SEVERITIES:
-                img_dir = CORRUPTED_DIR / corruption / f"severity_{severity}"
+                sev_dir = CORRUPTED_DIR / corruption / f"severity_{severity}"
+                img_dir = sev_dir / "images"
+                lbl_dir = sev_dir / "labels"
                 if not img_dir.exists():
                     print(f"  MISSING: {img_dir} — run generate_corruptions.py first")
                     results_grid[corruption][severity] = None
                     continue
+
+                # Drop any stale Ultralytics label cache so counts stay correct
+                for cache in lbl_dir.glob("*.cache"):
+                    cache.unlink()
 
                 yaml_path = build_temp_yaml(corruption, severity, tmp_dir)
 
