@@ -43,3 +43,9 @@ runs/
 
 # RT-DETR reference clone (local-only, not part of this repo)
 RT-DETR/
+
+# Intermediate dataset artifacts (raw downloads, abandoned auto-label outputs,
+# Roboflow segmentation/OBB exports) — only data/annotated/ is the deliverable
+auto_labeled/
+segmentation-dataset.yolov8/
+segmentation-dataset.yolov8-obb/

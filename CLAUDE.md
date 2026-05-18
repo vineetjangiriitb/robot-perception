@@ -17,7 +17,7 @@ This project builds an uncertainty-aware humanoid robot component detector that:
 
 The following outcomes were stated in the project proposal email to the professor. The project is **NOT complete** until all of these are achieved:
 
-1. **Fine-tuned RT-DETR** on a 5-class humanoid robot dataset
+1. **Fine-tuned RT-DETR** on a 4-class humanoid robot dataset (arm, leg, torso, head — sensor class dropped due to absence in source dataset)
 2. **Robustness benchmarked** across 25 corruption scenarios (5 corruption types × 5 severities, ImageNet-C methodology)
 3. **Monte Carlo Dropout** with N=30 stochastic forward passes for uncertainty quantification
 4. **ECE < 0.10** — uncertainty must be well-calibrated
@@ -153,6 +153,25 @@ Calibration: 100 images from train — required for conformal prediction (Phase 
 - Temperature scaling is the recommended fix if ECE > 0.15
 - If MC Dropout uncertainty doesn't increase with corruption, verify `module.train()` is called on all Dropout layers
 - For conformal quantile computation, use exactly: `q_level = np.ceil((n+1) * (1-epsilon)) / n`
+
+---
+
+## Parallel Execution & Agent Delegation
+
+When planning next steps, AI must analyse the workflow for parallelisation opportunities before recommending a sequential plan.
+
+**Required analysis every time a multi-step plan is proposed:**
+1. List all upcoming tasks and their dependencies (what must finish before what can start)
+2. Identify tasks with no dependency on each other — these are candidates for parallel execution
+3. Estimate time saved by running them in parallel vs sequentially
+4. If meaningful time can be saved (>20% of total estimated time), AI must proactively recommend spawning multiple agents and running those tasks in parallel — do not wait for the user to ask
+
+**Format for the recommendation:**
+- Show a dependency graph or table: task → depends on → can run in parallel with
+- State the estimated sequential time vs parallel time
+- Explicitly say which tasks to delegate to which agents and what each agent's prompt should cover
+
+**Rule:** Never silently choose sequential execution when parallel is viable. Always surface the analysis and let the user decide.
 
 ---
 
