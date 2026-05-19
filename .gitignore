@@ -27,9 +27,8 @@ models/robust/
 data/raw/
 data/corrupted/
 
-# Results (keep figures, not JSON dumps by default)
-results/robustness_baseline.json
-results/robustness_robust.json
+# Results — track everything in results/
+# (JSON dumps are key deliverables, not build artifacts)
 
 # macOS
 .DS_Store
@@ -43,3 +42,9 @@ runs/
 
 # RT-DETR reference clone (local-only, not part of this repo)
 RT-DETR/
+
+# Intermediate dataset artifacts (raw downloads, abandoned auto-label outputs,
+# Roboflow segmentation/OBB exports) — only data/annotated/ is the deliverable
+auto_labeled/
+segmentation-dataset.yolov8/
+segmentation-dataset.yolov8-obb/

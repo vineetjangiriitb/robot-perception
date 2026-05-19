@@ -1,0 +1,7 @@
+path: /Users/vineetjangir/robust&uncertainty-aware-robot-perception/data/annotated
+train: images/train
+val:   images/val
+test:  images/test
+
+nc: 4
+names: ['arm', 'leg', 'torso', 'head']
