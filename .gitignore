@@ -27,9 +27,8 @@ models/robust/
 data/raw/
 data/corrupted/
 
-# Results (keep figures, not JSON dumps by default)
-results/robustness_baseline.json
-results/robustness_robust.json
+# Results — track everything in results/
+# (JSON dumps are key deliverables, not build artifacts)
 
 # macOS
 .DS_Store

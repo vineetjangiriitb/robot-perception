@@ -39,19 +39,34 @@ A humanoid robot component detector (arms, legs, cameras, sensors) that:
 
 ### 0.1 Environment Setup
 
+**Compute platform: RunPod RTX 3090 via SSH** (replaces Colab)
+
 ```bash
-# Recommended: Google Colab Pro or local Python 3.10+
-pip install torch torchvision
-pip install supervision          # annotation + detection utils
+# SSH into your RunPod pod
+ssh root@<pod-ip> -p <port>
+
+# Pod already has PyTorch 2.4.0 + CUDA 12.4.1 installed via template
+# Install project dependencies
+pip install ultralytics
 pip install albumentations       # corruption augmentations
-pip install timm                 # transformer backbones
-pip install matplotlib numpy pandas scikit-learn
+pip install scikit-learn matplotlib pandas
+pip install scipy                # for ECE + conformal quantile computation
+
+# Verify GPU
+python -c "import torch; print(torch.cuda.get_device_name(0))"
+# Expected: NVIDIA GeForce RTX 3090
 ```
 
-Clone RT-DETR:
+**Sync your project to the pod:**
 ```bash
-git clone https://github.com/lyuwenyu/RT-DETR.git
-cd RT-DETR
+# From your Mac (run once per pod session)
+rsync -avz --progress \
+  /Users/vineetjangir/robust\&uncertainty-aware-robot-perception/data/annotated/ \
+  root@<pod-ip>:<port>:/workspace/data/annotated/
+
+rsync -avz --progress \
+  /Users/vineetjangir/robust\&uncertainty-aware-robot-perception/scripts/ \
+  root@<pod-ip>:<port>:/workspace/scripts/
 ```
 
 Set up your project repo:
@@ -291,25 +306,38 @@ plt.show()
 
 ### 2.1 Model Setup
 
-Use RT-DETR-L (large variant) for best accuracy, or RT-DETR-R50 if compute is limited.
+Use RT-DETR-L (large variant). RTX 3090 has 24 GB VRAM — use batch=16.
 
+**Run on RunPod via SSH:**
+```bash
+# On pod
+python /workspace/scripts/train_baseline.py
+```
+
+`scripts/train_baseline.py` does:
 ```python
-# Recommended: use Ultralytics wrapper which supports RT-DETR natively
-pip install ultralytics
-
 from ultralytics import RTDETR
 
-model = RTDETR('rtdetr-l.pt')  # pretrained on COCO
+model = RTDETR('rtdetr-l.pt')  # pretrained on COCO, auto-downloaded
 results = model.train(
-    data='robot_parts.yaml',   # your dataset config
+    data='/workspace/data/annotated/data.yaml',
     epochs=100,
     imgsz=640,
-    batch=8,                   # adjust for your GPU memory
+    batch=16,          # RTX 3090 can handle 16
     lr0=1e-4,
     weight_decay=1e-4,
     warmup_epochs=3,
-    device=0                   # GPU
+    patience=20,
+    device=0,
+    project='/workspace/models/baseline',
+    name='run1'
 )
+```
+
+**After training finishes — sync back to Mac before stopping pod:**
+```bash
+rsync -avz root@<pod-ip>:<port>:/workspace/models/baseline/ ./models/baseline/
+rsync -avz root@<pod-ip>:<port>:/workspace/results/ ./results/
 ```
 
 Your `robot_parts.yaml`:
@@ -1295,18 +1323,19 @@ Robust Humanoid Robot Perception — RT-DETR · MC Dropout · Conformal Predicti
 
 ## Time Estimate
 
-| Phase | Estimated time | Notes |
-|---|---|---|
-| 0 — Setup | 4–6 hrs | Papers take time, read carefully |
-| 1 — Dataset | 8–12 hrs | Annotation is the long pole |
-| 2 — Baseline | 4–6 hrs + GPU train time | Training: 2–4 hrs on Colab Pro |
-| 3 — Corruption benchmark | 4–6 hrs | Generating and evaluating 25 sets |
-| 4 — Robust training | 3–4 hrs + GPU train time | Another training run |
-| 5 — MC Dropout | 6–8 hrs | Aggregation logic is the hard part |
-| 6 — Conformal (stretch) | 4–6 hrs | Cleaner to implement than MC Dropout |
-| 7 — Write-up | 3–4 hrs | Don't skip this — it's what gets on the resume |
+| Phase | Estimated time | GPU time (RTX 3090) | RunPod cost |
+|---|---|---|---|
+| 0 — Setup | 1–2 hrs | — | — |
+| 1 — Dataset | done | — | — |
+| 2 — Baseline | 1 hr setup + train | ~45–60 min | ~$0.50 |
+| 3 — Corruption benchmark | 1 hr setup + eval | ~20–30 min | ~$0.25 |
+| 4 — Robust training | 30 min setup + train | ~45–60 min | ~$0.50 |
+| 5 — MC Dropout | 2–3 hrs | ~30 min (N=30 passes on test set) | ~$0.25 |
+| 6 — Conformal (stretch) | 2 hrs | ~10 min | ~$0.10 |
+| 7 — Write-up | 2–3 hrs | — | — |
 
-**Total: ~6–8 weeks at 5–8 hrs/week** (alongside coursework)
+**Total GPU cost estimate: ~$2–3 total on RunPod**
+**Rule: stop the pod the moment training/eval finishes. Never leave it idle.**
 
 ---
 
@@ -1318,7 +1347,6 @@ When starting a new Claude Code session on any phase, paste this at the top:
 Project: Robust + Uncertainty-Aware Robot Perception
 Current phase: [PHASE NUMBER] — [PHASE NAME]
 What I'm trying to do: [specific task]
-Repo structure: [paste tree output]
 Current error / question: [paste it]
 ```
 
@@ -1326,6 +1354,46 @@ For evaluation runs, always paste:
 - Your current metric numbers
 - The metric targets from the Problem Set
 - What you're trying to debug or improve
+
+---
+
+## RunPod SSH Quick Reference
+
+```bash
+# Connect
+ssh root@<pod-ip> -p <port>
+
+# Sync dataset TO pod (from Mac)
+rsync -avz data/annotated/ root@<pod-ip>:<port>:/workspace/data/annotated/
+
+# Sync scripts TO pod
+rsync -avz scripts/ root@<pod-ip>:<port>:/workspace/scripts/
+
+# Sync model weights TO pod (if restarting pod mid-project)
+rsync -avz models/ root@<pod-ip>:<port>:/workspace/models/
+
+# Sync results FROM pod (always do before stopping pod)
+rsync -avz root@<pod-ip>:<port>:/workspace/results/ ./results/
+rsync -avz root@<pod-ip>:<port>:/workspace/models/ ./models/
+
+# Check GPU
+nvidia-smi
+
+# Run training in background (survives SSH disconnect)
+nohup python /workspace/scripts/train_baseline.py > /workspace/train.log 2>&1 &
+tail -f /workspace/train.log
+```
+
+**Phase → script mapping:**
+
+| Phase | Script to run on pod |
+|---|---|
+| 2 — Baseline training | `python scripts/train_baseline.py` |
+| 3 — Corruption benchmark | `python scripts/evaluate_robustness.py --model models/baseline/run1/weights/best.pt` |
+| 4 — Robust training | `python scripts/train_robust.py` |
+| 4 — Robust benchmark | `python scripts/evaluate_robustness.py --model models/robust/run1/weights/best.pt --out results/robustness_robust.json` |
+| 5 — MC Dropout | `python scripts/mc_dropout_inference.py --model models/robust/run1/weights/best.pt` |
+| 6 — Conformal | `python scripts/conformal.py --model models/robust/run1/weights/best.pt` |
 
 ---
 
